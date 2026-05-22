@@ -1,0 +1,11 @@
+[server]
+authentication = true
+endpoint = {{ adb_with_ssl | bool | ternary('ssl', 'tcp') }}://[::]:8530
+storage-engine = rocksdb
+[log]
+level = INFO
+{% if adb_with_ssl | bool %}
+[ssl]
+cafile = {{ adb_truststore_file }}
+keyfile = {{ adb_keystore_file }}
+{% endif %}

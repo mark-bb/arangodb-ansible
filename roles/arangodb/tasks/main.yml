@@ -1,0 +1,29 @@
+---
+- name: Setup vars
+  ansible.builtin.import_tasks: set-env.yml
+
+- name: Install arangodb
+  ansible.builtin.import_tasks: install.yml
+  when:
+    - play_action == "install"
+
+- name: Start arangodb
+  ansible.builtin.import_tasks: start.yml
+  when:
+    - play_action == "start"
+
+- name: Stop arangodb
+  ansible.builtin.import_tasks: stop.yml
+  when:
+    - play_action == "stop"
+
+- name: Uninstall arangodb
+  ansible.builtin.import_tasks: uninstall.yml
+  when:
+    - play_action == "uninstall"
+    
+- name: Arangodb online upgrade
+  ansible.builtin.import_tasks: upgrade-online.yml
+  when:
+    - play_action == "upgrade-online"
+

@@ -1,0 +1,8 @@
+---
+- name: Setup distro
+  ansible.builtin.include_tasks: setup.yml
+  when: not (adb_config_only | bool)
+
+- name: Config arangodb
+  ansible.builtin.include_tasks: config.yml
+

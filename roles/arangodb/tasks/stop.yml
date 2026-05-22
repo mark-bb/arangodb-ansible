@@ -1,0 +1,10 @@
+- name: Get {{ adb_service_name }} service status
+  ansible.builtin.systemd_service:
+    name: "{{ adb_service_name }}"
+  register: service_status
+
+- name: Stop {{ adb_service_name }} service
+  ansible.builtin.systemd_service:
+    name: "{{ adb_service_name }}"
+    state: "stopped"
+  when: service_status.status.ActiveState == "active"

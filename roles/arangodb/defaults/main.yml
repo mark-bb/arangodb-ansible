@@ -1,0 +1,81 @@
+adb_config_only: "yes"
+adb_with_ssl: "yes"
+  #adb_with_ssl: "no"
+adb_ssl_reconfig: "no"
+adb_user: "arangodb"
+adb_dbservers_group_name: "dbservers"
+adb_agents_group_name: "agents"
+
+adb_baseDir: "/var/lib/arango"
+adb_dataDir: "{{ adb_baseDir ~ '/data' }}"
+adb_logDir: "{{ adb_baseDir ~ '/logs' }}"
+adb_tmpDir: "{{ adb_baseDir ~ '/data/tmp' }}"
+adb_cfgDir: "/etc/arangodb"
+adb_certDir: "{{ adb_cfgDir ~ '/certs' }}"
+adb_pkg_tmp: "/tmp/ansible/arangodb"
+adb_var_run: "/var/run/arangodb-starter"
+
+adb_dirs:
+  - { path: "{{ adb_baseDir }}", mode: "0700" }
+  - { path: "{{ adb_dataDir }}", mode: "0700" }
+  - { path: "{{ adb_logDir }}", mode: "0700" }
+  - { path: "{{ adb_tmpDir }}", mode: "0700" }
+  - { path: "{{ adb_cfgDir }}", mode: "0700" }
+  - { path: "{{ adb_certDir }}", mode: "0700" }
+  - { path: "{{ adb_pkg_tmp }}", mode: "0755" }
+  - { path: "{{ adb_var_run }}", mode: "0755" }
+
+adb_configs:
+  - { src: "arangod-coordinator.conf.j2", dest: "{{ adb_dataDir ~ '/coordinator8529/arangod.conf' }}" }
+  - { src: "arangod-dbserver.conf.j2",    dest: "{{ adb_dataDir ~ '/dbserver8530/arangod.conf' }}" }
+  
+adb_env_file: "{{ adb_cfgDir ~ '/arangodb.env' }}"
+adb_keystore_file: "{{ adb_certDir ~ '/node.pem' }}"
+adb_truststore_file: "{{ adb_certDir ~ '/truststore.pem' }}"
+
+adb_service_name:  "arangodb-starter.service"
+adb_unit_filename: "{{ '/etc/systemd/system/' ~ adb_service_name }}"
+
+adb_auth_jwt_secret: "{{ adb_cfgDir ~ '/arangodb.secret' }}"
+adb_auth_jwt_secret_loc: "files/secret/arangodb.secret"
+
+adb_pkg_install_cmds:
+  - { pkg_mgr: "apt", cmd: "DEBIAN_FRONTEND=noninteractive apt-get -y install" }
+  - { pkg_mgr: "deb", cmd: "DEBIAN_FRONTEND=noninteractive apt-get -y install" }
+  - { pkg_mgr: "yum", cmd: "yum -y install" }
+  - { pkg_mgr: "dnf", cmd: "dnf -y install" }
+
+# Static options
+adb_arangodb_options:
+  - "--starter.mode=cluster"
+  - "--starter.data-dir={{ adb_dataDir }}"
+  - "--starter.join={{ groups[adb_agents_group_name] | map('extract', hostvars, 'ansible_default_ipv4') | map(attribute='address') | join(',') }}"
+  - "--log.dir={{ adb_logDir }}"
+  - "--log.rotate-files-to-keep=10"
+  - "--auth.jwt-secret={{ adb_auth_jwt_secret }}"
+  - "--args.agents.agency.election-timeout-max=10"
+  - "--args.agents.agency.election-timeout-min=2"
+  - "--args.all.log.level=startup=debug"
+  - "--args.all.log.use-local-time=true"
+  - "--args.all.log.keep-logrotate=true"
+  - "--args.dbservers.temp.path={{ adb_tmpDir }}"
+  - "--args.all.cluster.system-replication-factor=2"
+  - "--args.all.cluster.min-replication-factor=2"
+  - "--args.all.cluster.index-create-timeout=18000"
+  - "--args.all.foxx.enable=false"
+# default: (system RAM size - 2GiB) * 0.3 (on > 4 GiB of RAM)
+  - "--args.all.rocksdb.block-cache-size={{ (((ansible_memtotal_mb | int) - 2*1024)*1024*1024*0.3) | int }}"
+#  - "--args.all.rocksdb.block-cache-size={{ (((ansible_memtotal_mb | int) - 2*1024)*1024*1024*0.1) | int }}"
+# default: 64mb  
+  - "--args.all.rocksdb.write-buffer-size={{ (64*1024*1024) }}"
+#  - "--args.all.rocksdb.write-buffer-size={{ (128*1024*1024) }}"
+# default: 10  
+#  - "--args.all.rocksdb.max-write-buffer-number=10"
+  - "--args.all.rocksdb.max-write-buffer-number=20"
+# default: (system RAM size - 2 GiB) * 0.5 (on > 4 GiB of RAM)
+  - "--args.all.rocksdb.total-write-buffer-size={{ (((ansible_memtotal_mb | int) - 2*1024)*1024*1024*0.5) | int }}"
+#  - "--args.all.rocksdb.total-write-buffer-size={{ (((ansible_memtotal_mb | int) - 2*1024)*1024*1024*0.2) | int }}"
+# default: 256  
+  - "--args.all.rocksdb.level0-stop-trigger=256"
+#  - "--args.all.rocksdb.level0-stop-trigger=1024"
+

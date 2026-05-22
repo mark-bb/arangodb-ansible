@@ -1,0 +1,59 @@
+- name: Package tmp directory
+  ansible.builtin.file:
+    path: "{{ adb_pkg_tmp }}"
+    state: directory
+
+- name: Copy packages
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ adb_pkg_tmp ~ '/' }}"
+  with_fileglob: "{{ 'files/distrib/*' }}"
+
+- name: Install packages
+  ansible.builtin.shell:
+    cmd: "{{ adb_pkg_install_cmd ~ ' ' ~ adb_pkg_tmp ~ '/*' }}"
+
+- name: Stop and disable the original arangodb service
+  ansible.builtin.systemd_service:
+    name: "arangodb3.service"
+    enabled: false
+    state: "stopped"
+  
+- name: Arangodb directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: "{{ adb_user}}"
+    group: "{{ adb_user}}"
+    mode: "{{ item.mode }}"
+    state: directory
+  with_items: "{{ adb_dirs }}"
+
+- name: Check if jwt secret file exists
+  ansible.builtin.stat:
+    path: "{{ adb_auth_jwt_secret }}"
+  register: stat_res
+
+- block:
+  - name: Create jwt secret on one of the hosts
+    ansible.builtin.shell:
+      cmd: "{{ 'arangodb create jwt-secret --secret=' ~ adb_auth_jwt_secret }}"
+
+  - name: Copy jwt secret to local
+    ansible.builtin.fetch:
+      src: "{{ adb_auth_jwt_secret }}"
+      dest: "{{ adb_auth_jwt_secret_loc }}"
+      flat: true
+
+  when: 
+    - inventory_hostname == groups[adb_dbservers_group_name][0]
+    - not stat_res.stat.exists
+  
+- name: Copy jwt secret to all hosts
+  ansible.builtin.copy:
+    owner: "{{ adb_user}}"
+    group: "{{ adb_user}}"
+    mode: "0600"
+    src: "{{ adb_auth_jwt_secret_loc }}"
+    dest: "{{ adb_auth_jwt_secret }}"
+  when: not stat_res.stat.exists
+  

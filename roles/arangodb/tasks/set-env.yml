@@ -1,0 +1,9 @@
+- name: Check package manager
+  ansible.builtin.assert:
+    that: ansible_pkg_mgr in (adb_pkg_install_cmds | map(attribute='pkg_mgr'))
+    fail_msg: "{{ 'Unsupported ansible_pkg_mgr: ' ~ ansible_pkg_mgr }}"
+
+- name: Set command for packages installation
+  ansible.builtin.set_fact:
+    adb_pkg_install_cmd: "{{ adb_pkg_install_cmds | selectattr('pkg_mgr', 'match', ansible_pkg_mgr) | map(attribute='cmd') | join }}"
+    

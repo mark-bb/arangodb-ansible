@@ -1,0 +1,46 @@
+[Unit]
+Description=ArangoDB Starter
+After=sysinit.target sockets.target timers.target paths.target slices.target network.target syslog.target
+
+[Service]
+# we could use another type for more reliable reporting
+Type=simple
+
+PermissionsStartOnly=true
+User={{ adb_user }}
+Group={{ adb_user }}
+
+# system limits
+LimitNOFILE=131072
+LimitNPROC=131072
+TasksMax=131072
+
+EnvironmentFile={{ adb_env_file }}
+
+# Protect users from making their installation unusable by
+# starting arangod with wrong permissions (e.g. as root).
+# This will reset the permissions to the working default.
+ExecStartPre=/usr/bin/install -g {{ adb_user }} -o {{ adb_user }} -d ${TMP_PATH}
+ExecStartPre=/usr/bin/install -g {{ adb_user }} -o {{ adb_user }} -d ${DATADIR}
+ExecStartPre=/usr/bin/install -g {{ adb_user }} -o {{ adb_user }} -d ${LOGDIR}
+ExecStartPre=/usr/bin/install -g {{ adb_user }} -o {{ adb_user }} -d ${CERTDIR}
+ExecStartPre=/usr/bin/install -g {{ adb_user }} -o {{ adb_user }} -d {{ adb_var_run }}
+ExecStartPre=/usr/bin/env chown -R {{ adb_user }}:{{ adb_user }} ${LOGDIR}
+ExecStartPre=/usr/bin/env chmod 700 ${LOGDIR}
+ExecStartPre=/usr/bin/env chown -R {{ adb_user }}:{{ adb_user }} ${DATADIR}
+ExecStartPre=/usr/bin/env chmod 700 ${DATADIR}
+ExecStartPre=/usr/bin/env chown -R {{ adb_user }}:{{ adb_user }} ${CERTDIR}
+ExecStartPre=/usr/bin/env chmod 700 ${CERTDIR}
+
+ExecStart=/usr/bin/arangodb $OPTIONS
+
+TimeoutStopSec=3600
+TimeoutSec=3600
+
+Restart=on-failure
+RestartSec=5
+
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

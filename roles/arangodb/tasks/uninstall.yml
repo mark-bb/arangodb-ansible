@@ -1,0 +1,30 @@
+---
+- name: Stop arangodb
+  ansible.builtin.import_tasks: stop.yml
+  
+- name: Remove unit file
+  ansible.builtin.file:
+    path: "{{ adb_unit_filename }}"
+    state: absent
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: Uninstall arangodb package
+  ansible.builtin.package:
+    name: arangodb3
+    state: absent
+
+- name: Remove arangodb directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ adb_dirs }}"
+
+- name: Remove the user {{ adb_user }}
+  ansible.builtin.user:
+    name: "{{ adb_user }}"
+    state: absent
+    remove: yes
+    

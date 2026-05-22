@@ -1,0 +1,61 @@
+- name: Stop arangodb
+  ansible.builtin.include_tasks: stop.yml
+
+- name: Set arangodb env file
+  ansible.builtin.template:
+    owner: "{{ adb_user }}"
+    group: "{{ adb_user }}"
+    src: arangodb.env.j2
+    dest: "{{ adb_env_file }}"
+    
+- name: Copy certs
+  ansible.builtin.copy:    
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ adb_user}}"
+    group: "{{ adb_user}}"
+    mode: "0600"
+  with_items:
+    - { src: "{{ 'files/certs/' ~ inventory_hostname ~ '.pem' }}", dest: "{{ adb_keystore_file }}" }
+    - { src: "{{ 'files/certs/truststore.pem' }}", dest: "{{ adb_truststore_file }}" }
+  when: adb_with_ssl | bool
+
+- block:  
+  - name: Set arangodb dbserver & coordinator configs
+    ansible.builtin.template:
+      owner: "{{ adb_user }}"
+      group: "{{ adb_user }}"
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+    with_items: "{{ adb_configs }}"
+    when: inventory_hostname in groups[adb_dbservers_group_name]
+  
+  - name: Set arangodb agent config
+    ansible.builtin.template:
+      owner: "{{ adb_user }}"
+      group: "{{ adb_user }}"
+      src: arangod-agent.conf.j2
+      dest: "{{ adb_dataDir ~ '/agent8531/arangod.conf' }}"
+    when: inventory_hostname in groups[adb_agents_group_name]
+
+  - name: Remove {{ adb_dataDir ~ '/setup.json' }} file
+    ansible.builtin.file:
+      path: "{{ adb_dataDir ~ '/setup.json' }}"
+      state: absent
+
+  when: adb_ssl_reconfig | bool
+    
+- name: Set systemd unit file
+  ansible.builtin.template:
+    src: arangodb-starter.service.j2    
+    dest: "{{ adb_unit_filename }}"
+  register: service_conf
+  
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: service_conf.changed
+
+- name: Start arangodb
+  ansible.builtin.include_tasks: start.yml
+

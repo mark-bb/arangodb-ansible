@@ -1,0 +1,47 @@
+- name: Check if ArangoDB Starter is running
+  ansible.builtin.wait_for:
+    port: 8528
+    msg: "ArangoDB Starter is not active"
+
+- name: Remove old packages from the temp dir
+  ansible.builtin.shell:
+    cmd: "{{ 'rm -f ' ~ adb_pkg_tmp ~ '/*' }}"
+
+- name: Copy packages
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ adb_pkg_tmp ~ '/' }}"
+  with_fileglob: "{{ 'files/distrib/*' }}"
+
+- name: Install packages
+  ansible.builtin.shell:
+    cmd: "{{ adb_pkg_install_cmd ~ ' ' ~ adb_pkg_tmp ~ '/*' }}"
+
+- name: Kill ArangoDB Starter
+  ansible.builtin.shell:
+    cmd: "kill -9 $(pidof arangodb)"
+  register: res
+  ignore_errors: true
+
+- name: Check if ArangoDB has been killed successfully
+  ansible.builtin.assert:
+    that: not res.failed
+    fail_msg: "Unable to kill ArangoDB Starter"
+
+- name: Wait for ArangoDB Starter respawning
+  ansible.builtin.wait_for:
+    port: 8528
+    delay: 5
+    timeout: 60
+    msg: "ArangoDB Starter failed to respawn"
+
+- name: Upgrade ArangoDB
+  ansible.builtin.shell:
+    cmd: "{{ 'sudo -u ' ~ adb_user ~ ' arangodb upgrade --starter.endpoint=http://localhost:8528'}}"
+  register: res
+  ignore_errors: true
+  when: inventory_hostname == groups[adb_dbservers_group_name][0]
+  
+- debug:
+    var: res
+

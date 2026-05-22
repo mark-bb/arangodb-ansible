@@ -1,0 +1,15 @@
+---
+- name: Setup variables
+  hosts: arangodb
+  tasks:
+    - name: Setup variables
+      ansible.builtin.include_tasks: tasks/set-env.yml
+  tags:
+    - always
+
+- name: Arangodb [un]install
+  hosts: arangodb
+  roles:
+    - role: arangodb
+  tags:
+    - arangodb
